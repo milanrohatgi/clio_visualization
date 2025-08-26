@@ -10,8 +10,9 @@ def start_server():
     """Start a simple HTTP server to serve the visualization"""
     PORT = 8000
     
-    # Change to the directory containing the files
-    os.chdir('/Users/mrohatgi/tiktok')
+    # Change to the current directory (where the script is located)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(script_dir)
     
     Handler = http.server.SimpleHTTPRequestHandler
     

@@ -80,12 +80,12 @@ def parse_xml_robust(xml_string, is_meta_cluster: bool = False) -> Dict[str, Any
         print(f"Error parsing XML: {e}")
         return {}
 
-def process_cluster_data_v4(df: pd.DataFrame) -> Dict[str, Any]:
-    """Process the v4 cluster data with robust parsing"""
+def process_cluster_data(df: pd.DataFrame) -> Dict[str, Any]:
+    """Process the cluster data with robust parsing"""
     clusters = []
     
     for idx, row in df.iterrows():
-        # Use index as cluster ID since there's no cluster_label column in v4
+        # Use index as cluster ID
         cluster_id = idx
         
         # Parse item_ids
@@ -111,7 +111,7 @@ def process_cluster_data_v4(df: pd.DataFrame) -> Dict[str, Any]:
             'keywords': cluster_analysis.get('keywords', ''),
             'engagement': cluster_analysis.get('common_engagement', ''),
             'redirection': cluster_analysis.get('common_redirection', ''),
-            'item_ids': item_ids,  # New field for v4
+            'item_ids': item_ids,  # Field for item IDs
             'meta_analyses': {
                 'round_1': {
                     'theme': round_1_meta.get('overarching_theme', ''),
@@ -152,14 +152,14 @@ def process_cluster_data_v4(df: pd.DataFrame) -> Dict[str, Any]:
     }
 
 def main():
-    print("Loading v4 CSV data...")
-    df = pd.read_csv('v4_full.csv', encoding='utf-8', encoding_errors='ignore')
+    print("Loading CSV data...")
+    df = pd.read_csv('data.csv', encoding='utf-8', encoding_errors='ignore')
     
-    print(f"Processing {len(df)} clusters with v4 robust parser...")
-    processed_data = process_cluster_data_v4(df)
+    print(f"Processing {len(df)} clusters with robust parser...")
+    processed_data = process_cluster_data(df)
     
     print(f"Saving processed data...")
-    with open('processed_clusters_v4.json', 'w') as f:
+    with open('processed_clusters.json', 'w') as f:
         json.dump(processed_data, f, indent=2)
     
     print(f"Successfully processed {processed_data['total_count']} clusters!")
