@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIO: Hierarchical Cluster Analysis</title>
+    <link rel="stylesheet" href="styles.css?v=51">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>CLIO: Hierarchical Cluster Analysis</h1>
+            <div class="hierarchy-nav">
+                <div class="level-controls">
+                    <button id="level3Btn" class="level-btn active" data-level="3">Level 3 (9 groups)</button>
+                    <button id="level2Btn" class="level-btn" data-level="2">Level 2 (99 groups)</button>
+                    <button id="level1Btn" class="level-btn" data-level="1">Level 1 (998 groups)</button>
+                    <button id="level0Btn" class="level-btn" data-level="0">Level 0 (10k clusters)</button>
+                </div>
+            </div>
+            <div class="controls">
+                <input type="text" id="searchInput" placeholder="🔍 Search cluster names & descriptions...">
+                <button id="searchBtn">Search</button>
+                <button id="resetView">Reset View</button>
+            </div>
+        </header>
+
+        <!-- Main PCA Visualization -->
+        <div class="pca-main-section">
+            <div class="pca-header">
+                <h2>Interactive Cluster Visualization</h2>
+                <div class="pca-controls">
+                    <button id="pcaLevel0Btn" class="pca-level-btn" data-level="0">Individual Clusters</button>
+                    <button id="pcaLevel1Btn" class="pca-level-btn" data-level="1">Level 1 Meta-Clusters</button>
+                    <button id="pcaLevel2Btn" class="pca-level-btn active" data-level="2">Level 2 Meta-Clusters</button>
+                    <button id="resetZoom" class="pca-reset-btn">Reset Zoom</button>
+                </div>
+                <div class="pca-search">
+                    <input type="text" id="pcaSearchInput" placeholder="🎯 Highlight points by keywords..." />
+                    <button id="pcaSearchClear" class="pca-search-clear">✕</button>
+                </div>
+            </div>
+            <div class="pca-main-container">
+                <div id="pcaPlot" class="pca-plot-main">
+                    <div class="loading-pca">Loading interactive UMAP visualization...</div>
+                </div>
+                <div class="pca-sidebar">
+                    <div class="pca-stats">
+                        <h4>Dataset Info</h4>
+                        <div><strong>Dimensionality:</strong> <span id="pcaVariance">2D UMAP</span></div>
+                        <div><strong>Clusters:</strong> <span id="pcaClusters">-</span></div>
+                        <div><strong>Parent Groups:</strong> <span id="pcaParents">-</span></div>
+                        <div class="zoom-info">
+                            <strong>Controls:</strong><br>
+                            🖱️ <em>Click + Drag</em> to pan<br>
+                            🔍 <em>Mouse wheel</em> to zoom<br>
+                            👆 <em>Click points</em> to explore
+                        </div>
+                    </div>
+                    <div class="pca-legend">
+                        <h4>Parent Groups</h4>
+                        <div id="pcaLegend" class="legend-items">Click points to explore clusters</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+
+            <div class="navigation">
+                <button id="prevBtn">◀ Previous</button>
+                <span id="currentCluster">Cluster 0</span>
+                <button id="nextBtn">Next ▶</button>
+            </div>
+
+            <div class="cluster-info">
+                <div class="cluster-header">
+                    <h2 id="clusterName">Loading...</h2>
+                    <span id="clusterId" class="cluster-id">ID: 0</span>
+                </div>
+
+                <div class="cluster-content">
+                    <div class="section">
+                        <h3>Topic Overview</h3>
+                        <p id="clusterTopic" class="content-text">Loading...</p>
+                    </div>
+
+                    <div class="section">
+                        <h3>Detailed Analysis</h3>
+                        <p id="clusterDescription" class="content-text">Loading...</p>
+                    </div>
+
+                    <div class="section">
+                        <h3>Keywords</h3>
+                        <div id="clusterKeywords" class="keywords">Loading...</div>
+                    </div>
+
+                    <div class="section" id="itemIdsSection" style="display: none;">
+                        <h3>Sample Item IDs</h3>
+                        <div id="clusterItemIds" class="item-ids">Loading...</div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Engagement Pattern</h3>
+                        <p id="clusterEngagement" class="content-text">Loading...</p>
+                    </div>
+
+                    <div class="section">
+                        <h3>Redirection Methods</h3>
+                        <p id="clusterRedirection" class="content-text">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <div class="cluster-list">
+            <div class="cluster-list-header">
+                <h3 id="clusterListTitle">All Level 3 Meta-Clusters</h3>
+                <div class="view-stats">
+                    <span id="viewStats">Showing 9 items</span>
+                    <button id="backBtn" class="back-btn" style="display: none;">⬅ Back</button>
+                </div>
+            </div>
+            <div id="clusterGrid" class="cluster-grid">
+                Loading clusters...
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
