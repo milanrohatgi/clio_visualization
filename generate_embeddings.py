@@ -19,46 +19,20 @@ def load_hierarchical_data():
         return None
 
 def extract_text_content(cluster):
-    """Extract and combine text content from cluster for embedding"""
-    text_parts = []
+    """Extract topic/theme content from cluster for embedding (topic-focused embeddings)"""
+    # For individual clusters, use 'topic' field (which maps to common_topic from XML)
+    # For meta-clusters, use 'topic' field (which maps to overarching_theme from XML)
+    topic_content = cluster.get('topic', '').strip()
     
-    # Add cluster name
-    if cluster.get('name'):
-        text_parts.append(cluster['name'])
+    # Fallback to cluster name if no topic content found
+    if not topic_content:
+        topic_content = cluster.get('name', '').strip()
     
-    # Add keywords
-    if cluster.get('keywords'):
-        if isinstance(cluster['keywords'], list):
-            text_parts.extend(cluster['keywords'])
-        else:
-            text_parts.append(str(cluster['keywords']))
+    # Final fallback
+    if not topic_content:
+        topic_content = f"Cluster {cluster.get('id', 'unknown')}"
     
-    # Add engagement patterns (different field names for individual vs meta clusters)
-    if cluster.get('engagement'):  # individual clusters
-        text_parts.append(cluster['engagement'])
-    elif cluster.get('tactics'):  # meta clusters (updated field name)
-        text_parts.append(cluster['tactics'])
-    
-    # Add redirection patterns (different field names for individual vs meta clusters)
-    if cluster.get('redirection'):  # both individual and meta clusters now use 'redirection'
-        text_parts.append(cluster['redirection'])
-    
-    # Add common topics or themes
-    if cluster.get('topic'):  # can be common_topic or overarching_theme
-        text_parts.append(cluster['topic'])
-    
-    # Add synthesis/description
-    if cluster.get('description'):
-        text_parts.append(cluster['description'])
-    
-    # Combine all text parts
-    combined_text = ' '.join([str(part) for part in text_parts if part and str(part).strip()])
-    
-    # Fallback if no text found
-    if not combined_text.strip():
-        combined_text = f"Cluster {cluster.get('id', 'unknown')}"
-    
-    return combined_text
+    return topic_content
 
 def generate_embeddings_for_level(clusters, level_name, model, hierarchy_data=None):
     """Generate embeddings for a specific level"""
@@ -189,6 +163,7 @@ def generate_embeddings_for_level(clusters, level_name, model, hierarchy_data=No
 def main():
     print("=== UMAP Cluster Embeddings Generator ===")
     print("Using SentenceTransformer: paraphrase-multilingual-mpnet-base-v2")
+    print("Embedding strategy: Topic-focused (common_topic for individual, overarching_theme for meta-clusters)")
     
     # Load hierarchical data
     print("Loading hierarchical cluster data...")
