@@ -89,9 +89,9 @@ Your CSV file should have exactly 5 columns with the following structure:
 
 The item_ids now contain tuples where:
 - First value: The item ID (TikTok video/photo ID)
-- Second value: Boolean truth value determining link type
-  - `False`: Links to video format (`/detail/video`)
-  - `True`: Links to photo format (`/detail/photo-post`)
+- Second value: Boolean truth value indicating photo mode
+  - `False`: Video post - links to video format (`/detail/video`)
+  - `True`: Photo mode post - links to photo format (`/detail/photo-post`)
 
 ## 🔧 Manual Setup (Alternative)
 
@@ -145,10 +145,10 @@ If you prefer manual setup:
 ### Item IDs
 - **Clickable Links**: Item IDs are clickable and link to TikTok content
   - Video posts: Links to `/detail/video` (truth_value = False)
-  - Photo posts: Links to `/detail/photo-post` (truth_value = True)
-- **Sample Display**: Shows up to 10 item IDs per cluster, with count indicator for more
+  - Photo mode posts: Links to `/detail/photo-post` (truth_value = True)
+- **Sample Display**: Shows all item IDs per cluster as clickable buttons
 - **Copy All Feature**: Complete list of all item IDs with copy-to-clipboard functionality
-- **Visual Indicators**: Photo posts are highlighted in green, video posts in pink
+- **Visual Indicators**: Photo mode posts are highlighted in green, video posts in pink
 
 ## 🛠️ Customization
 
@@ -156,9 +156,9 @@ If you prefer manual setup:
 To change the URL format for item ID links, edit the `displayItemIds` function in `script.js`. The system now supports conditional linking based on the truth_value:
 
 ```javascript
-// Conditional link based on truth value
+// Conditional link based on photo mode truth value
 if (truthValue) {
-    // Custom photo-post link
+    // Custom photo mode link
     idLink.href = `https://your-domain.com/photo-post?item_id=${itemId}&params=here`;
 } else {
     // Custom video link
