@@ -51,10 +51,10 @@ Your CSV file should have exactly 5 columns with the following structure:
 | Column | Name | Description |
 |--------|------|-------------|
 | 1 | `cluster_name` | XML containing individual cluster analysis |
-| 2 | `item_ids` | List of item IDs (e.g., TikTok video IDs) |
-| 3 | `round_1_cluster` | XML containing Round 1 meta-cluster analysis |
-| 4 | `round_2_cluster` | XML containing Round 2 meta-cluster analysis |
-| 5 | `round_3_cluster` | XML containing Round 3 meta-cluster analysis |
+| 2 | `round_1_cluster_name` | XML containing Round 1 meta-cluster analysis |
+| 3 | `round_2_cluster_name` | XML containing Round 2 meta-cluster analysis |
+| 4 | `round_3_cluster_name` | XML containing Round 3 meta-cluster analysis |
+| 5 | `item_ids` | List of tuples with (item_id, truth_value) pairs |
 
 ### XML Format Examples
 
@@ -84,8 +84,14 @@ Your CSV file should have exactly 5 columns with the following structure:
 
 **Item IDs Format:**
 ```
-['7522898183849069879', '7523456789012345678', '7524567890123456789']
+[(7522898183849069879, False), (7523456789012345678, True), (7524567890123456789, False)]
 ```
+
+The item_ids now contain tuples where:
+- First value: The item ID (TikTok video/photo ID)
+- Second value: Boolean truth value determining link type
+  - `False`: Links to video format (`/detail/video`)
+  - `True`: Links to photo format (`/detail/photo-post`)
 
 ## 🔧 Manual Setup (Alternative)
 
@@ -137,16 +143,27 @@ If you prefer manual setup:
 - **Keyword Search**: Highlight points by keywords in the UMAP plot (plot search bar)
 
 ### Item IDs
-- **Clickable Links**: Item IDs are clickable and link to TikTok video details
+- **Clickable Links**: Item IDs are clickable and link to TikTok content
+  - Video posts: Links to `/detail/video` (truth_value = False)
+  - Photo posts: Links to `/detail/photo-post` (truth_value = True)
 - **Sample Display**: Shows up to 10 item IDs per cluster, with count indicator for more
+- **Copy All Feature**: Complete list of all item IDs with copy-to-clipboard functionality
+- **Visual Indicators**: Photo posts are highlighted in green, video posts in pink
 
 ## 🛠️ Customization
 
 ### Modifying Item ID Links
-To change the URL format for item ID links, edit the `displayItemIds` function in `script.js`:
+To change the URL format for item ID links, edit the `displayItemIds` function in `script.js`. The system now supports conditional linking based on the truth_value:
 
 ```javascript
-idLink.href = `https://your-custom-domain.com/video?id=${id}&other=params`;
+// Conditional link based on truth value
+if (truthValue) {
+    // Custom photo-post link
+    idLink.href = `https://your-domain.com/photo-post?item_id=${itemId}&params=here`;
+} else {
+    // Custom video link
+    idLink.href = `https://your-domain.com/video?item_id=${itemId}&params=here`;
+}
 ```
 
 ### Changing Color Scheme

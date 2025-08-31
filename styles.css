@@ -836,6 +836,83 @@ body {
     transform: translateY(0);
 }
 
+/* All Item IDs section */
+.all-item-ids {
+    background: rgba(18, 18, 18, 0.6);
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid rgba(255, 0, 80, 0.2);
+}
+
+.all-item-ids-list {
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+}
+
+.all-item-ids-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.all-item-ids-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.all-item-ids-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 0, 80, 0.6);
+    border-radius: 4px;
+}
+
+.all-item-ids-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 0, 80, 0.8);
+}
+
+.item-ids-count {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: right;
+}
+
+.copy-btn {
+    background: #666;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 10px;
+    font-family: inherit;
+    opacity: 0.7;
+}
+
+.copy-btn:hover {
+    background: #777;
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.copy-btn:active {
+    transform: translateY(0);
+}
+
+.copy-btn.copied {
+    background: #4CAF50;
+    color: #fff;
+}
+
 /* Keywords styling */
 .keywords {
     display: flex;

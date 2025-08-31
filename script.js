@@ -22,6 +22,7 @@ let lastClickTime = 0;
 let lastClickedPoint = null;
 let pcaSearchQuery = '';
 let pcaSearchMatches = new Set();
+let highlightedParentGroup = null;
 
 // DOM elements
 const levelBtns = document.querySelectorAll('.level-btn');
@@ -57,6 +58,9 @@ const clusterDescription = document.getElementById('clusterDescription');
 const clusterKeywords = document.getElementById('clusterKeywords');
 const clusterEngagement = document.getElementById('clusterEngagement');
 const clusterRedirection = document.getElementById('clusterRedirection');
+
+// Copy button element
+const copyItemIdsBtn = document.getElementById('copyItemIdsBtn');
 
 
 
@@ -97,6 +101,7 @@ async function loadHierarchyData() {
         }
         hierarchyData = await response.json();
         console.log(`Loaded hierarchical data:`, hierarchyData.hierarchy_stats);
+        updateLevelButtonCounts();
     } catch (error) {
         console.error('Error loading hierarchy data:', error);
         throw error;
@@ -116,6 +121,36 @@ async function loadEmbeddingsData() {
         console.error('Error loading embeddings data:', error);
         throw error;
     }
+}
+
+// Update level button counts with actual data
+function updateLevelButtonCounts() {
+    if (!hierarchyData) return;
+    
+    // Get actual counts from the loaded data
+    const level0Count = hierarchyData.individual_clusters ? hierarchyData.individual_clusters.length : 0;
+    const level1Count = hierarchyData.meta_clusters?.round_1 ? hierarchyData.meta_clusters.round_1.length : 0;
+    const level2Count = hierarchyData.meta_clusters?.round_2 ? hierarchyData.meta_clusters.round_2.length : 0;
+    const level3Count = hierarchyData.meta_clusters?.round_3 ? hierarchyData.meta_clusters.round_3.length : 0;
+    
+    // Format numbers for display
+    const formatCount = (count) => {
+        if (count >= 1000) {
+            return (count / 1000).toFixed(count >= 10000 ? 0 : 1) + 'k';
+        }
+        return count.toString();
+    };
+    
+    // Update button text
+    const level3Btn = document.getElementById('level3Btn');
+    const level2Btn = document.getElementById('level2Btn');
+    const level1Btn = document.getElementById('level1Btn');
+    const level0Btn = document.getElementById('level0Btn');
+    
+    if (level3Btn) level3Btn.textContent = `Level 3 (${level3Count} groups)`;
+    if (level2Btn) level2Btn.textContent = `Level 2 (${level2Count} groups)`;
+    if (level1Btn) level1Btn.textContent = `Level 1 (${formatCount(level1Count)} groups)`;
+    if (level0Btn) level0Btn.textContent = `Level 0 (${formatCount(level0Count)} clusters)`;
 }
 
 // Setup PCA visualization with D3.js and Canvas
@@ -255,6 +290,9 @@ function setupEventListeners() {
     resetViewBtn.addEventListener('click', resetView);
     backBtn.addEventListener('click', goBack);
     
+    // Copy button for item IDs
+    copyItemIdsBtn.addEventListener('click', copyAllItemIds);
+    
     // Keyboard navigation
     document.addEventListener('keydown', handleKeyboardNavigation);
 }
@@ -295,6 +333,17 @@ function showLevel(level) {
     selectedItemIndex = 0;
     renderCurrentView();
     displaySelectedItem();
+    
+    // Scroll to cluster cards section
+    setTimeout(() => {
+        const clusterListSection = document.querySelector('.cluster-list');
+        if (clusterListSection) {
+            clusterListSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+    }, 100); // Small delay to ensure content is rendered
 }
 
 // Navigate between items in current view
@@ -357,7 +406,7 @@ function displayIndividualCluster(cluster) {
     
     displayKeywords(cluster.keywords, clusterKeywords);
     
-    // Display item IDs (show up to 10, or all if less than 10)
+    // Display all item IDs as clickable buttons
     displayItemIds(cluster.item_ids);
 }
 
@@ -846,6 +895,10 @@ function drawCanvasPointsWithHighlight(highlightPoint) {
         const isSearchMatch = pcaSearchMatches.size > 0 && pcaSearchMatches.has(d.id);
         const isSearchActive = pcaSearchQuery.length > 0;
         
+        // Check if this point matches the highlighted parent group
+        const isParentHighlighted = highlightedParentGroup && d.parent === highlightedParentGroup;
+        const isParentHighlightActive = highlightedParentGroup !== null;
+        
         // Determine visual properties based on highlighting state
         let radius = baseRadius;
         let alpha = d.level === 0 ? 0.6 : 0.8; // Base opacity
@@ -862,6 +915,15 @@ function drawCanvasPointsWithHighlight(highlightPoint) {
             } else {
                 // Dim non-matching points during search
                 alpha = 0.15;
+            }
+        } else if (isParentHighlightActive) {
+            if (isParentHighlighted) {
+                // Highlight parent group matches
+                radius = baseRadius * 1.2;
+                alpha = 1.0;
+            } else {
+                // Dim non-matching points during parent group highlighting
+                alpha = 0.2;
             }
         }
         
@@ -880,9 +942,13 @@ function drawCanvasPointsWithHighlight(highlightPoint) {
             // Search match highlight - bright cyan stroke
             pcaContext.strokeStyle = 'rgba(37, 212, 237, 0.9)';
             pcaContext.lineWidth = Math.max(1.2, baseRadius * 0.25) / currentTransform.k;
+        } else if (isParentHighlightActive && isParentHighlighted) {
+            // Parent group highlight - bright yellow stroke
+            pcaContext.strokeStyle = 'rgba(255, 223, 0, 0.9)';
+            pcaContext.lineWidth = Math.max(1.1, baseRadius * 0.2) / currentTransform.k;
         } else {
             // Default stroke
-            const strokeAlpha = isSearchActive && !isSearchMatch ? 0.1 : (d.level === 0 ? 0.2 : 0.4);
+            const strokeAlpha = (isSearchActive && !isSearchMatch) || (isParentHighlightActive && !isParentHighlighted) ? 0.1 : (d.level === 0 ? 0.2 : 0.4);
             pcaContext.strokeStyle = `rgba(255,255,255,${strokeAlpha})`;
             pcaContext.lineWidth = Math.max(0.5, baseRadius * 0.15) / currentTransform.k;
         }
@@ -1261,15 +1327,23 @@ function updatePCALegendRainbow(parentGroups, parentColorMap) {
         item.appendChild(textDiv);
         pcaLegend.appendChild(item);
         
-        // Add hover effects
+        // Add hover effects with parent group highlighting
         item.addEventListener('mouseenter', () => {
             item.style.backgroundColor = 'rgba(255, 0, 80, 0.1)';
             item.style.transform = 'scale(1.02)';
+            
+            // Highlight parent group in the plot
+            highlightedParentGroup = parent;
+            drawCanvasPoints();
         });
         
         item.addEventListener('mouseleave', () => {
             item.style.backgroundColor = 'transparent';
             item.style.transform = 'scale(1)';
+            
+            // Clear parent group highlighting
+            highlightedParentGroup = null;
+            drawCanvasPoints();
         });
         
         // Add click functionality to navigate to Level 3 cluster
@@ -1557,31 +1631,101 @@ function displayItemIds(itemIds) {
         return;
     }
     
-    // Show up to 10 item IDs, or all if less than 10
-    const sampleIds = itemIds.slice(0, 10);
-    const uniqueIds = [...new Set(sampleIds)]; // Remove duplicates
-    
+    // Show ALL item IDs as clickable buttons
     clusterItemIds.innerHTML = '';
-    uniqueIds.forEach(id => {
+    itemIds.forEach(item => {
         const idLink = document.createElement('a');
         idLink.className = 'item-id';
-        idLink.textContent = id;
-        idLink.href = `https://lighthouse.tiktok-usts.net/detail/video?item_id=${id}&product=tiktok&config_key=tiktok`;
+        
+        // Handle both old format (string) and new format (object with item_id and truth_value)
+        let itemId, truthValue;
+        if (typeof item === 'object' && item.item_id !== undefined) {
+            itemId = item.item_id;
+            truthValue = item.truth_value;
+        } else {
+            // Fallback for old format
+            itemId = item;
+            truthValue = false;
+        }
+        
+        idLink.textContent = itemId;
+        
+        // Conditional link based on truth value
+        if (truthValue) {
+            // Use photo-post link for truth_value = true
+            idLink.href = `https://lighthouse.tiktok-usts.net/detail/photo-post?item_id=${itemId}&product=tiktok&config_key=tiktok_photo_post`;
+        } else {
+            // Use original video link for truth_value = false
+            idLink.href = `https://lighthouse.tiktok-usts.net/detail/video?item_id=${itemId}&product=tiktok&config_key=tiktok`;
+        }
+        
         idLink.target = '_blank'; // Open in new tab
         idLink.rel = 'noopener noreferrer'; // Security best practice
+        
+        // Add visual indicator for photo posts
+        if (truthValue) {
+            idLink.style.background = '#4CAF50'; // Green for photo posts
+            idLink.title = 'Photo Post';
+        } else {
+            idLink.title = 'Video Post';
+        }
+        
         clusterItemIds.appendChild(idLink);
     });
     
-    // Add count indicator if there are more items
-    if (itemIds.length > 10) {
-        const moreSpan = document.createElement('span');
-        moreSpan.className = 'item-id';
-        moreSpan.style.background = '#666';
-        moreSpan.textContent = `+${itemIds.length - 10} more`;
-        clusterItemIds.appendChild(moreSpan);
+    itemIdsSection.style.display = 'block';
+}
+
+// Copy all item IDs to clipboard
+function copyAllItemIds() {
+    const clusterItemIds = document.getElementById('clusterItemIds');
+    const itemLinks = clusterItemIds.querySelectorAll('.item-id');
+    
+    if (itemLinks.length === 0) {
+        return;
     }
     
-    itemIdsSection.style.display = 'block';
+    // Extract text content from all item ID links
+    const itemIdStrings = Array.from(itemLinks)
+        .filter(link => !link.textContent.startsWith('+')) // Exclude "+X more" indicators
+        .map(link => link.textContent);
+    
+    const text = itemIdStrings.join('\n');
+    
+    if (!text || text.trim() === '') {
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        // Show success feedback
+        copyItemIdsBtn.textContent = '✓ Copied!';
+        copyItemIdsBtn.classList.add('copied');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            copyItemIdsBtn.textContent = 'Copy All';
+            copyItemIdsBtn.classList.remove('copied');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            copyItemIdsBtn.textContent = '✓ Copied!';
+            copyItemIdsBtn.classList.add('copied');
+            setTimeout(() => {
+                copyItemIdsBtn.textContent = 'Copy All';
+                copyItemIdsBtn.classList.remove('copied');
+            }, 2000);
+        } catch (err) {
+            console.error('Fallback copy failed', err);
+        }
+        document.body.removeChild(textArea);
+    });
 }
 
 // Hide item IDs section for meta-clusters

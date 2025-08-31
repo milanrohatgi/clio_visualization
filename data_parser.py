@@ -17,8 +17,8 @@ def extract_xml_field(xml_content: str, field_name: str) -> str:
         return content
     return ""
 
-def parse_item_ids(item_ids_str) -> List[str]:
-    """Parse the item_ids column which appears to be a string representation of a list"""
+def parse_item_ids(item_ids_str) -> List[Dict[str, Any]]:
+    """Parse the item_ids column which now contains tuples with (item_id, truth_value)"""
     # Handle NaN/None values
     if pd.isna(item_ids_str) or item_ids_str is None:
         return []
@@ -27,8 +27,24 @@ def parse_item_ids(item_ids_str) -> List[str]:
     item_ids_str = str(item_ids_str)
     
     try:
-        # Try to parse as a Python literal (list)
-        return ast.literal_eval(item_ids_str)
+        # Try to parse as a Python literal (list of tuples)
+        parsed_data = ast.literal_eval(item_ids_str)
+        
+        # Convert tuples to dictionaries with item_id and truth_value
+        result = []
+        for item in parsed_data:
+            if isinstance(item, tuple) and len(item) >= 2:
+                result.append({
+                    'item_id': str(item[0]),
+                    'truth_value': bool(item[1])
+                })
+            elif isinstance(item, (str, int)):
+                # Fallback for old format - assume False for truth_value
+                result.append({
+                    'item_id': str(item),
+                    'truth_value': False
+                })
+        return result
     except:
         try:
             # If that fails, try to clean it up and parse
@@ -36,7 +52,16 @@ def parse_item_ids(item_ids_str) -> List[str]:
             if cleaned.startswith('[') and cleaned.endswith(']'):
                 # Remove brackets and split by comma
                 items = cleaned[1:-1].split(',')
-                return [item.strip().strip("'\"") for item in items if item.strip()]
+                result = []
+                for item in items:
+                    item = item.strip().strip("'\"")
+                    if item:
+                        # Old format fallback
+                        result.append({
+                            'item_id': str(item),
+                            'truth_value': False
+                        })
+                return result
         except:
             pass
     
@@ -94,14 +119,14 @@ def process_cluster_data(df: pd.DataFrame) -> Dict[str, Any]:
         # Parse cluster_name (individual cluster analysis)
         cluster_analysis = parse_xml_robust(row['cluster_name'], is_meta_cluster=False)
         
-        # Parse round_1_cluster (meta analysis 1)
-        round_1_meta = parse_xml_robust(row['round_1_cluster'], is_meta_cluster=True)
+        # Parse round_1_cluster_name (meta analysis 1)
+        round_1_meta = parse_xml_robust(row['round_1_cluster_name'], is_meta_cluster=True)
         
-        # Parse round_2_cluster (meta analysis 2)  
-        round_2_meta = parse_xml_robust(row['round_2_cluster'], is_meta_cluster=True)
+        # Parse round_2_cluster_name (meta analysis 2)  
+        round_2_meta = parse_xml_robust(row['round_2_cluster_name'], is_meta_cluster=True)
         
-        # Parse round_3_cluster (meta analysis 3)
-        round_3_meta = parse_xml_robust(row['round_3_cluster'], is_meta_cluster=True)
+        # Parse round_3_cluster_name (meta analysis 3)
+        round_3_meta = parse_xml_robust(row['round_3_cluster_name'], is_meta_cluster=True)
         
         cluster_data = {
             'id': cluster_id,
