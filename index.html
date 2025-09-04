@@ -37,7 +37,14 @@
                     <button id="resetZoom" class="pca-reset-btn">Reset Zoom</button>
                 </div>
                 <div class="pca-search">
-                    <input type="text" id="pcaSearchInput" placeholder="🎯 Highlight points by keywords..." />
+                    <input type="text" id="pcaSearchInput" placeholder="🎯 Search clusters..." />
+                    <select id="pcaSearchType" class="pca-search-type">
+                        <option value="keywords">Keywords</option>
+                        <option value="name">Name</option>
+                        <option value="engagement">Engagement Tactics</option>
+                        <option value="redirection">Redirection Methods</option>
+                        <option value="item_ids">Item IDs</option>
+                    </select>
                     <button id="pcaSearchClear" class="pca-search-clear">✕</button>
                 </div>
             </div>
@@ -130,6 +137,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=9"></script>
 </body>
 </html>

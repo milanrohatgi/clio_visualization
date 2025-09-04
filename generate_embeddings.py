@@ -86,27 +86,31 @@ def generate_embeddings_for_level(clusters, level_name, model, hierarchy_data=No
 
             # For each level_1 cluster, find its level_2 parent, then find level_3 parent
             for i, cluster in enumerate(cluster_data):
-                cluster_index = None
-                for idx, r1_cluster in enumerate(round_1_clusters):
-                    if r1_cluster.get('id') == cluster.get('id'):
-                        cluster_index = idx
-                        break
+                # Extract numeric ID from "r1_XXX" format
+                cluster_id = cluster.get('id', '')
+                if cluster_id.startswith('r1_'):
+                    l1_numeric_id = int(cluster_id.replace('r1_', ''))
+                else:
+                    l1_numeric_id = None
 
                 parent_found = False
-                if cluster_index is not None:
-                    # Find level_2 parent
-                    level_2_parent_index = None
-                    for r2_idx, r2_cluster in enumerate(round_2_clusters):
+                if l1_numeric_id is not None:
+                    # Find level_2 parent by checking which L2 contains this L1 numeric ID
+                    l2_parent_numeric_id = None
+                    for r2_cluster in round_2_clusters:
                         children_list = r2_cluster.get('children', [])
-                        if cluster_index in children_list:
-                            level_2_parent_index = r2_idx
+                        if l1_numeric_id in children_list:
+                            # Extract numeric ID from "r2_XXX" format
+                            r2_id = r2_cluster.get('id', '')
+                            if r2_id.startswith('r2_'):
+                                l2_parent_numeric_id = int(r2_id.replace('r2_', ''))
                             break
 
-                    # Find level_3 parent
-                    if level_2_parent_index is not None:
+                    # Find level_3 parent by checking which L3 contains this L2 numeric ID
+                    if l2_parent_numeric_id is not None:
                         for r3_cluster in round_3_clusters:
                             children_list = r3_cluster.get('children', [])
-                            if level_2_parent_index in children_list:
+                            if l2_parent_numeric_id in children_list:
                                 parent_assignments.append(r3_cluster.get('name', 'Unknown'))
                                 parent_found = True
                                 break
@@ -116,24 +120,25 @@ def generate_embeddings_for_level(clusters, level_name, model, hierarchy_data=No
         else:
             parent_assignments = ['Unknown'] * len(cluster_data)
     elif level_name == "level_2":  # Level 2 meta-clusters - color by Level 3 parents
-        # For round_2 meta-clusters, children lists contain indices, not IDs
+        # For round_2 meta-clusters, children lists contain numeric IDs
         if hierarchy_data and 'meta_clusters' in hierarchy_data and 'round_3' in hierarchy_data['meta_clusters']:
             round_3_clusters = hierarchy_data['meta_clusters']['round_3']
             round_2_clusters = hierarchy_data['meta_clusters']['round_2']
             
             for i, cluster in enumerate(cluster_data):
-                cluster_index = None
-                for idx, r2_cluster in enumerate(round_2_clusters):
-                    if r2_cluster.get('id') == cluster.get('id'):
-                        cluster_index = idx
-                        break
+                # Extract numeric ID from "r2_XXX" format
+                cluster_id = cluster.get('id', '')
+                if cluster_id.startswith('r2_'):
+                    l2_numeric_id = int(cluster_id.replace('r2_', ''))
+                else:
+                    l2_numeric_id = None
                 
                 parent_found = False
-                if cluster_index is not None:
-                    # Find level_3 parent by checking which round_3 cluster contains this index
+                if l2_numeric_id is not None:
+                    # Find level_3 parent by checking which round_3 cluster contains this L2 numeric ID
                     for r3_cluster in round_3_clusters:
                         children_list = r3_cluster.get('children', [])
-                        if cluster_index in children_list:
+                        if l2_numeric_id in children_list:
                             parent_assignments.append(r3_cluster.get('name', 'Unknown'))
                             parent_found = True
                             break

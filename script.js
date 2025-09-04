@@ -48,6 +48,7 @@ const pcaClusters = document.getElementById('pcaClusters');
 const pcaParents = document.getElementById('pcaParents');
 const pcaLegend = document.getElementById('pcaLegend');
 const pcaSearchInput = document.getElementById('pcaSearchInput');
+const pcaSearchType = document.getElementById('pcaSearchType');
 const pcaSearchClear = document.getElementById('pcaSearchClear');
 
 // Cluster detail elements
@@ -69,6 +70,10 @@ async function init() {
     try {
         showLoading();
         await Promise.all([loadHierarchyData(), loadEmbeddingsData()]);
+        
+        // Initialize global L3 color mapping after data is loaded
+        initializeGlobalL3ColorMapping();
+        
         setupEventListeners();
         setupPCAVisualization();
         
@@ -95,7 +100,9 @@ async function init() {
 // Load hierarchical cluster data
 async function loadHierarchyData() {
     try {
-        const response = await fetch('hierarchical_clusters.json');
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const response = await fetch(`hierarchical_clusters.json?t=${timestamp}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -111,7 +118,9 @@ async function loadHierarchyData() {
 // Load embeddings data
 async function loadEmbeddingsData() {
     try {
-        const response = await fetch('cluster_embeddings.json');
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const response = await fetch(`cluster_embeddings.json?t=${timestamp}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -759,9 +768,105 @@ function showPCALevel(level) {
     updatePCAInfo(level);
 }
 
+// Global color mapping for consistent Level 3 parent group colors
+let globalL3ColorMap = null;
+let globalL3ParentGroups = null;
+
+// Initialize global L3 color mapping
+function initializeGlobalL3ColorMapping() {
+    if (!embeddingsData || !embeddingsData.level_0) return;
+    
+    // Get all Level 3 parent groups from Level 0 data (individual clusters)
+    const level0Data = embeddingsData.level_0.data;
+    globalL3ParentGroups = [...new Set(level0Data.map(d => d.parent))].sort();
+    
+    // Create consistent rainbow color scale for Level 3 groups
+    const colorScale = d3.scaleSequential()
+        .domain([0, globalL3ParentGroups.length - 1])
+        .interpolator(d3.interpolateRainbow);
+    
+    globalL3ColorMap = {};
+    globalL3ParentGroups.forEach((parent, i) => {
+        globalL3ColorMap[parent] = colorScale(i);
+    });
+    
+    console.log('Initialized global L3 color mapping with', globalL3ParentGroups.length, 'groups');
+    console.log('First 5 L3 groups and colors:', globalL3ParentGroups.slice(0, 5).map(g => ({name: g, color: globalL3ColorMap[g]})));
+}
+
+// Get L3 parent for any cluster at any level
+function getL3Parent(clusterId, level) {
+    if (!hierarchyData) {
+        console.error('No hierarchy data available');
+        return null;
+    }
+    
+    if (level === 0) {
+        // Individual cluster - parent field already points to L3 name
+        const cluster = hierarchyData.individual_clusters.find(c => c.id === clusterId);
+        return cluster ? cluster.parent : null;
+    } else if (level === 1) {
+        // L1 meta-cluster - need to find which L2 contains this L1, then which L3 contains that L2
+        
+        // Extract numeric ID from "r1_XXX" format
+        const l1NumericId = parseInt(clusterId.replace('r1_', ''));
+        
+        // Find which L2 cluster contains this L1 cluster numeric ID
+        const l2Parent = hierarchyData.meta_clusters.round_2.find(l2 => 
+            l2.children && l2.children.includes(l1NumericId)
+        );
+        
+        if (!l2Parent) {
+            console.warn('Could not find L2 parent for L1 cluster:', clusterId, 'numeric ID:', l1NumericId);
+            return null;
+        }
+        
+        // Extract numeric ID from L2 parent "r2_XXX" format
+        const l2NumericId = parseInt(l2Parent.id.replace('r2_', ''));
+        
+        // Find which L3 cluster contains this L2 cluster numeric ID
+        const l3Parent = hierarchyData.meta_clusters.round_3.find(l3 => 
+            l3.children && l3.children.includes(l2NumericId)
+        );
+        
+        if (!l3Parent) {
+            console.warn('Could not find L3 parent for L2 cluster:', l2Parent.id, 'numeric ID:', l2NumericId);
+            return null;
+        }
+        
+        return l3Parent.name;
+        
+    } else if (level === 2) {
+        // L2 meta-cluster - need to find which L3 contains this L2
+        
+        // Extract numeric ID from "r2_XXX" format
+        const l2NumericId = parseInt(clusterId.replace('r2_', ''));
+        
+        // Find which L3 cluster contains this L2 cluster numeric ID
+        const l3Parent = hierarchyData.meta_clusters.round_3.find(l3 => 
+            l3.children && l3.children.includes(l2NumericId)
+        );
+        
+        if (!l3Parent) {
+            console.warn('Could not find L3 parent for L2 cluster:', clusterId, 'numeric ID:', l2NumericId);
+            return null;
+        }
+        
+        return l3Parent.name;
+    }
+    
+    console.warn('Unknown level:', level);
+    return null;
+}
+
 // Draw PCA plot for given level using D3.js
 function drawPCAPlot(level) {
     if (!embeddingsData || !pcaSvg) return;
+    
+    // Initialize global L3 color mapping if not done yet
+    if (!globalL3ColorMap) {
+        initializeGlobalL3ColorMapping();
+    }
     
     const levelKey = `level_${level}`;
     const levelData = embeddingsData[levelKey];
@@ -813,17 +918,41 @@ function drawPCAPlot(level) {
         .domain(yDomain)
         .range([height + margin.top, margin.top]);
     
-    // Create rainbow color scale based on parent groups
-    const parentGroups = [...new Set(data.map(d => d.parent))];
-    pcaColorScale = d3.scaleSequential()
-        .domain([0, parentGroups.length - 1])
-        .interpolator(d3.interpolateRainbow);
-    
-    // Create color mapping for parents
-    const parentColorMap = {};
-    parentGroups.forEach((parent, i) => {
-        parentColorMap[parent] = pcaColorScale(i);
+    // Map each data point to its L3 parent and use consistent global coloring
+    const dataWithL3Parents = data.map(d => {
+        let l3Parent;
+        
+        if (level === 0) {
+            // For individual clusters, parent field is the correct L3 parent from CSV
+            l3Parent = d.parent;
+        } else {
+            // For meta-clusters, calculate L3 parent from hierarchy traversal
+            l3Parent = getL3Parent(d.id, level);
+            
+            // Debug logging for first few items
+            if (data.indexOf(d) < 3) {
+                console.log(`Level ${level}, Cluster ${d.id}: Calculated L3 parent = "${l3Parent}"`);
+            }
+        }
+        
+        return { ...d, l3Parent };
     });
+    
+    // Get unique L3 parent groups present in this level's data
+    const presentL3Groups = [...new Set(dataWithL3Parents.map(d => d.l3Parent).filter(p => p))];
+    
+    console.log(`Level ${level}: Found ${presentL3Groups.length} unique L3 parent groups:`, presentL3Groups.slice(0, 5));
+    
+    // Use the global color mapping
+    const parentColorMap = {};
+    presentL3Groups.forEach(parent => {
+        parentColorMap[parent] = globalL3ColorMap[parent] || '#888888'; // fallback color
+        if (!globalL3ColorMap[parent]) {
+            console.warn(`No global color found for L3 parent: "${parent}"`);
+        }
+    });
+    
+    console.log(`Level ${level}: Color map has ${Object.keys(parentColorMap).length} entries`);
     
     // Axes removed for cleaner visualization
     
@@ -833,7 +962,7 @@ function drawPCAPlot(level) {
     const pointRadius = level === 0 ? 2 : (level === 1 ? 5 : 8);
     
     // Use Canvas for all levels for consistent smooth performance
-    return drawPCAPlotCanvas(level, data, parentGroups, parentColorMap, pointRadius);
+    return drawPCAPlotCanvas(level, dataWithL3Parents, presentL3Groups, parentColorMap, pointRadius);
 }
 
 // Draw PCA plot using Canvas for better performance across all levels
@@ -843,10 +972,11 @@ function drawPCAPlotCanvas(level, data, parentGroups, parentColorMap, pointRadiu
     // Store data for interactions with enhanced metadata
     currentPCAData = data.map(d => ({
         ...d,
-        color: parentColorMap[d.parent],
+        color: parentColorMap[d.l3Parent || d.parent] || '#FF0050', // Use L3 parent for consistent coloring, fallback to pink
         level: level,
         baseRadius: pointRadius,
-        displayName: d.name || `Cluster ${d.id}` // Fallback for display
+        displayName: d.name || `Cluster ${d.id}`, // Fallback for display
+        l3Parent: d.l3Parent || d.parent // Store L3 parent for legend
     }));
     
     // Clear canvas
@@ -883,9 +1013,9 @@ function drawCanvasPointsWithHighlight(highlightPoint) {
         const y = pcaYScale(d.y);
         const baseRadius = d.baseRadius / currentTransform.k;
         
-        // Debug: Log radius for first few points
+        // Debug: Log radius and color for first few points
         if (index < 3) {
-            console.log(`Point ${index}: level=${d.level}, d.baseRadius=${d.baseRadius}, transform.k=${currentTransform.k}, final radius=${baseRadius}`);
+            console.log(`Point ${index}: level=${d.level}, color=${d.color}, l3Parent="${d.l3Parent}", baseRadius=${d.baseRadius}, final radius=${baseRadius}`);
         }
         
         // Check if this is the highlighted point (hover)
@@ -895,8 +1025,8 @@ function drawCanvasPointsWithHighlight(highlightPoint) {
         const isSearchMatch = pcaSearchMatches.size > 0 && pcaSearchMatches.has(d.id);
         const isSearchActive = pcaSearchQuery.length > 0;
         
-        // Check if this point matches the highlighted parent group
-        const isParentHighlighted = highlightedParentGroup && d.parent === highlightedParentGroup;
+        // Check if this point matches the highlighted parent group (use L3 parent)
+        const isParentHighlighted = highlightedParentGroup && d.l3Parent === highlightedParentGroup;
         const isParentHighlightActive = highlightedParentGroup !== null;
         
         // Determine visual properties based on highlighting state
@@ -1129,7 +1259,7 @@ function showPCATooltip(event, data) {
     const canDrillDown = level > 0; // Can only drill down from meta-clusters
     const drillText = canDrillDown ? '<br/><em>Double-click to drill down</em>' : '';
     
-    tooltip.html(`<strong>${data.displayName || data.name}</strong><br/>Parent: ${data.parent}<br/><em>Click to explore</em>${drillText}`)
+    tooltip.html(`<strong>${data.displayName || data.name}</strong><br/>Parent: ${data.l3Parent || data.parent}<br/><em>Click to explore</em>${drillText}`)
         .style('left', (event.pageX + 10) + 'px')
         .style('top', (event.pageY - 10) + 'px');
 }
@@ -1151,12 +1281,20 @@ function updatePCAInfo(level) {
     // UMAP doesn't have explained variance, so we keep the static text from HTML
     pcaClusters.textContent = levelData.data.length.toLocaleString();
     
-    // Count unique parents
-    const uniqueParents = new Set(levelData.data.map(d => d.parent));
+    // Count unique L3 parents (for consistency across all levels)
+    let uniqueParents;
+    if (level === 0) {
+        uniqueParents = new Set(levelData.data.map(d => d.parent));
+    } else {
+        // For meta-clusters, count unique L3 parents
+        uniqueParents = new Set(levelData.data.map(d => {
+            const l3Parent = getL3Parent(d.id, level);
+            return l3Parent || d.parent;
+        }).filter(p => p));
+    }
     pcaParents.textContent = uniqueParents.size;
     
-    // Update legend
-    updatePCALegend(levelData);
+    // Update legend - this will be called by drawPCAPlot with correct data
 }
 
 // Update PCA for filtered view (drill-down)
@@ -1308,8 +1446,11 @@ function updatePCAInfoFiltered(level, clusterCount, parentCount) {
 function updatePCALegendRainbow(parentGroups, parentColorMap) {
     pcaLegend.innerHTML = '';
     
+    // Sort parent groups for consistent ordering
+    const sortedParentGroups = parentGroups.sort();
+    
     // Show all parent groups - they will be scrollable if too many
-    parentGroups.forEach(parent => {
+    sortedParentGroups.forEach(parent => {
         const item = document.createElement('div');
         item.className = 'legend-item';
         item.style.cursor = 'pointer';
@@ -1522,10 +1663,12 @@ function searchClustersInPCA(query) {
         return;
     }
     
-    // Search through current PCA data - KEYWORDS ONLY
+    const searchType = pcaSearchType.value;
+    console.log(`Searching for "${query}" in field: ${searchType}`);
+    
+    // Search through current PCA data based on selected search type
     currentPCAData.forEach(d => {
         // Find the corresponding cluster data based on the current PCA level
-        let actualKeywords = '';
         let searchData = null;
         
         // Get the appropriate data source based on current PCA level
@@ -1539,17 +1682,99 @@ function searchClustersInPCA(query) {
         
         if (searchData && Array.isArray(searchData)) {
             const cluster = searchData.find(c => c.id === d.id || c.name === d.name);
-            if (cluster && cluster.keywords) {
-                actualKeywords = cluster.keywords.toLowerCase();
+            if (cluster) {
+                let isMatch = false;
+                
+                switch (searchType) {
+                    case 'keywords':
+                        isMatch = cluster.keywords && cluster.keywords.toLowerCase().includes(pcaSearchQuery);
+                        break;
+                        
+                    case 'name':
+                        isMatch = cluster.name && cluster.name.toLowerCase().includes(pcaSearchQuery);
+                        break;
+                        
+                    case 'engagement':
+                        // Check both 'engagement' (individual clusters) and 'tactics' (meta-clusters)
+                        const engagementText = (cluster.engagement || cluster.tactics || '').toLowerCase();
+                        isMatch = engagementText.includes(pcaSearchQuery);
+                        break;
+                        
+                    case 'redirection':
+                        isMatch = cluster.redirection && cluster.redirection.toLowerCase().includes(pcaSearchQuery);
+                        break;
+                        
+                    case 'item_ids':
+                        // Parse item IDs from query - support comma, newline, and space separated
+                        const searchItemIds = pcaSearchQuery
+                            .split(/[,\n\r\s]+/)  // Split on commas, newlines, carriage returns, or whitespace
+                            .map(id => id.trim())  // Remove whitespace
+                            .filter(id => id);  // Remove empty strings
+                        
+                        if (currentPCALevel === 0) {
+                            // Level 0: Direct item ID match in individual clusters
+                            if (cluster.item_ids && Array.isArray(cluster.item_ids)) {
+                                isMatch = searchItemIds.some(searchId => 
+                                    cluster.item_ids.some(itemObj => 
+                                        itemObj.item_id && itemObj.item_id.toString().includes(searchId)
+                                    )
+                                );
+                            }
+                        } else if (currentPCALevel === 1) {
+                            // Level 1: Check item IDs in all child individual clusters
+                            if (cluster.children && Array.isArray(cluster.children)) {
+                                isMatch = searchItemIds.some(searchId => {
+                                    return cluster.children.some(childId => {
+                                        const individualCluster = hierarchyData.individual_clusters[childId];
+                                        if (individualCluster && individualCluster.item_ids && Array.isArray(individualCluster.item_ids)) {
+                                            return individualCluster.item_ids.some(itemObj => 
+                                                itemObj.item_id && itemObj.item_id.toString().includes(searchId)
+                                            );
+                                        }
+                                        return false;
+                                    });
+                                });
+                            }
+                        } else if (currentPCALevel === 2) {
+                            // Level 2: Check item IDs in all child L1 clusters' child individual clusters
+                            if (cluster.children && Array.isArray(cluster.children)) {
+                                isMatch = searchItemIds.some(searchId => {
+                                    return cluster.children.some(l1Id => {
+                                        // Find the L1 cluster by numeric ID
+                                        const l1Cluster = hierarchyData.meta_clusters.round_1.find(l1 => 
+                                            l1.id === `r1_${l1Id}`
+                                        );
+                                        if (l1Cluster && l1Cluster.children && Array.isArray(l1Cluster.children)) {
+                                            return l1Cluster.children.some(childId => {
+                                                const individualCluster = hierarchyData.individual_clusters[childId];
+                                                if (individualCluster && individualCluster.item_ids && Array.isArray(individualCluster.item_ids)) {
+                                                    return individualCluster.item_ids.some(itemObj => 
+                                                        itemObj.item_id && itemObj.item_id.toString().includes(searchId)
+                                                    );
+                                                }
+                                                return false;
+                                            });
+                                        }
+                                        return false;
+                                    });
+                                });
+                            }
+                        }
+                        break;
+                        
+                    default:
+                        isMatch = false;
+                }
+                
+                if (isMatch) {
+                    pcaSearchMatches.add(d.id);
+                }
             }
-        }
-        
-        if (actualKeywords && actualKeywords.includes(pcaSearchQuery)) {
-            pcaSearchMatches.add(d.id);
         }
     });
     
-    console.log(`Found ${pcaSearchMatches.size} matches for "${query}"`);
+    console.log(`Found ${pcaSearchMatches.size} matches for "${query}" in ${searchType}` + 
+        (searchType === 'item_ids' ? ` (Level ${currentPCALevel})` : ''));
     
     // Redraw with highlighting
     drawCanvasPoints();
@@ -1573,6 +1798,27 @@ function clearPCASearch() {
 }
 
 function setupPCASearchListeners() {
+    // Update placeholder text based on search type
+    function updatePlaceholder() {
+        const searchType = pcaSearchType.value;
+        const placeholders = {
+            'keywords': '🎯 Search by keywords...',
+            'name': '🎯 Search by name...',
+            'engagement': '🎯 Search engagement tactics...',
+            'redirection': '🎯 Search redirection methods...',
+            'item_ids': '🎯 Enter item IDs (any separator: comma, space, newline)...'
+        };
+        pcaSearchInput.placeholder = placeholders[searchType] || '🎯 Search clusters...';
+        
+        // Clear search when type changes
+        if (pcaSearchQuery) {
+            clearPCASearch();
+        }
+    }
+    
+    // Search type dropdown event
+    pcaSearchType.addEventListener('change', updatePlaceholder);
+    
     // Search input event
     pcaSearchInput.addEventListener('input', (e) => {
         searchClustersInPCA(e.target.value);
@@ -1591,7 +1837,8 @@ function setupPCASearchListeners() {
         }
     });
     
-    // Initialize clear button state
+    // Initialize placeholder and clear button state
+    updatePlaceholder();
     pcaSearchClear.disabled = true;
     pcaSearchClear.style.opacity = '0.3';
 }

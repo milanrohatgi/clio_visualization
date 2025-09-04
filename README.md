@@ -6,8 +6,10 @@ An interactive web-based visualization tool for exploring hierarchical cluster d
 
 - **Hierarchical Navigation**: Explore clusters across multiple levels (Individual → Round 1 → Round 2 → Round 3)
 - **Interactive UMAP Plots**: 2D visualizations with zoom, pan, and click-to-explore functionality
-- **Keyword Search**: Highlight clusters by keywords with visual feedback
-- **Clickable Item IDs**: Direct links to TikTok video details (configurable URL format)
+- **Advanced Search System**: Multi-type search with support for keywords, names, engagement tactics, redirection methods, and item IDs
+- **Hierarchical Item ID Search**: Find meta-clusters containing specific item IDs anywhere in their sub-hierarchy
+- **Consistent Color Coding**: Proper Level 3 parent group coloring across all visualization levels
+- **Clickable Item IDs**: Direct links to TikTok video/photo content with automatic format detection
 - **Responsive Design**: TikTok-inspired styling with smooth animations
 - **Multi-level Analysis**: Engagement tactics and redirection methods for meta-clusters
 
@@ -123,6 +125,36 @@ If you prefer manual setup:
    python3 server.py
    ```
 
+## ✨ Recent Major Improvements
+
+### 🔧 Fixed Hierarchical Structure (Critical Bug Fix)
+- **Problem**: The original hierarchy parser was creating incorrect parent-child relationships, causing religious clusters to appear under automotive parents
+- **Solution**: Completely rebuilt the hierarchy building logic to properly respect the CSV parent assignments
+- **Impact**: All clusters now have semantically correct parent groups with proper color consistency
+
+### 🔍 Enhanced Search System
+- **Multi-Type Search**: New dropdown selector with 5 search types:
+  - **Keywords**: Search within cluster keywords
+  - **Name**: Search cluster names
+  - **Engagement Tactics**: Search engagement/tactics fields
+  - **Redirection Methods**: Search redirection fields  
+  - **Item IDs**: Search by specific item IDs
+- **Flexible Input Formats**: Item ID search supports comma, space, newline, and mixed separators
+- **Hierarchical Search**: Meta-clusters can be found by item IDs contained in their sub-clusters
+- **Dynamic Placeholders**: Context-aware input hints based on selected search type
+
+### 🎨 Consistent Color Coding
+- **Global L3 Color Mapping**: All 28 Level 3 parent groups have consistent rainbow colors
+- **Cross-Level Consistency**: Same parent group = same color across Individual, L1, and L2 views
+- **Proper Hierarchy Traversal**: L1 and L2 clusters correctly inherit their ultimate L3 parent colors
+
+### 🚀 Performance & UX Improvements
+- **Cache-Busting**: Automatic timestamps prevent browser caching issues
+- **Real-Time Search**: Instant visual feedback as you type
+- **Copy-Paste Friendly**: Direct paste support from "Copy All" buttons
+- **Responsive Search UI**: Mobile-friendly search interface
+- **Debug Logging**: Console output for troubleshooting search results
+
 ## 🎯 Usage
 
 ### Navigation
@@ -138,9 +170,19 @@ If you prefer manual setup:
   - Single-click points to view cluster details
   - Double-click meta-cluster points to drill down
 
-### Search Features
+### Enhanced Search Features
 - **General Search**: Search cluster names and descriptions (top search bar)
-- **Keyword Search**: Highlight points by keywords in the UMAP plot (plot search bar)
+- **Advanced UMAP Search**: Multi-type search system in the UMAP plot:
+  - **Search Type Selector**: Choose from Keywords, Name, Engagement Tactics, Redirection Methods, or Item IDs
+  - **Keywords Search**: Highlight points by keywords (default)
+  - **Name Search**: Find clusters by name
+  - **Engagement Search**: Search engagement tactics and methods
+  - **Redirection Search**: Find clusters by redirection methods
+  - **Item ID Search**: Advanced hierarchical search with multiple input formats:
+    - **Individual Level**: Direct item ID matching
+    - **L1/L2 Levels**: Finds meta-clusters containing the item IDs in their sub-clusters
+    - **Input Formats**: Supports comma, space, newline, or mixed separators
+    - **Copy-Paste Ready**: Paste directly from "Copy All" buttons
 
 ### Item IDs
 - **Clickable Links**: Item IDs are clickable and link to TikTok content
@@ -188,19 +230,20 @@ umap_reducer = umap.UMAP(
 ## 📁 Project Structure
 
 ```
-├── data.csv                    # Your input data (not included)
-├── data_parser.py             # CSV and XML parsing
-├── hierarchy_parser.py        # Hierarchical structure building
-├── generate_embeddings.py     # UMAP embedding generation
-├── server.py                  # Web server
-├── setup.sh                   # Automated setup script
-├── run_pipeline.sh           # Complete processing pipeline
-├── requirements.txt          # Python dependencies
-├── index.html               # Web interface
-├── script.js               # Frontend JavaScript
-├── styles.css              # CSS styling
-├── .gitignore             # Git ignore rules
-└── README.md              # This file
+├── data.csv                      # Your input data (not included)
+├── data_parser.py               # CSV and XML parsing
+├── hierarchy_parser.py          # Hierarchical structure building (fixed version)
+├── hierarchy_parser_old.py      # Original version (kept for reference)
+├── generate_embeddings.py       # UMAP embedding generation with corrected parent mapping
+├── server.py                    # Web server
+├── setup.sh                     # Automated setup script
+├── run_pipeline.sh             # Complete processing pipeline
+├── requirements.txt            # Python dependencies
+├── index.html                 # Web interface with enhanced search UI
+├── script.js                 # Frontend JavaScript with advanced search system
+├── styles.css                # CSS styling with responsive search components
+├── .gitignore               # Git ignore rules
+└── README.md                # This file
 ```
 
 ## 🔬 Technical Details

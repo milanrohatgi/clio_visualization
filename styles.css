@@ -207,7 +207,7 @@ body {
 
 #pcaSearchInput {
     flex: 1;
-    min-width: 280px;
+    min-width: 250px;
     padding: 10px 16px;
     background: rgba(0, 0, 0, 0.8);
     border: 2px solid rgba(255, 0, 80, 0.3);
@@ -217,6 +217,36 @@ body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
     transition: all 0.3s ease;
     outline: none;
+}
+
+.pca-search-type {
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid rgba(37, 212, 237, 0.3);
+    border-radius: 20px;
+    color: white;
+    font-size: 13px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.pca-search-type:hover {
+    border-color: #25D4ED;
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.pca-search-type:focus {
+    border-color: #25D4ED;
+    box-shadow: 0 0 10px rgba(37, 212, 237, 0.4);
+}
+
+.pca-search-type option {
+    background: #121212;
+    color: white;
+    padding: 5px;
 }
 
 #pcaSearchInput::placeholder {
@@ -746,6 +776,22 @@ body {
     
     .pca-controls {
         justify-content: center;
+    }
+    
+    .pca-search {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    #pcaSearchInput {
+        min-width: unset;
+        width: 100%;
+    }
+    
+    .pca-search-type {
+        min-width: unset;
+        width: 100%;
     }
     
     .cluster-header {
