@@ -43,7 +43,7 @@ body {
 
 /* Hierarchy Navigation */
 .hierarchy-nav {
-    margin-bottom: 20px;
+    margin: 20px 0;
 }
 
 
@@ -81,6 +81,7 @@ body {
     gap: 20px;
     flex-wrap: wrap;
     align-items: center;
+    margin-bottom: 20px;
 }
 
 .controls input {

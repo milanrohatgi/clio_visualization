@@ -4,26 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CLIO: Hierarchical Cluster Analysis</title>
-    <link rel="stylesheet" href="styles.css?v=51">
+    <link rel="stylesheet" href="styles.css?v=52">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <h1>CLIO: Hierarchical Cluster Analysis</h1>
-            <div class="hierarchy-nav">
-                <div class="level-controls">
-                    <button id="level3Btn" class="level-btn active" data-level="3">Level 3 (9 groups)</button>
-                    <button id="level2Btn" class="level-btn" data-level="2">Level 2 (99 groups)</button>
-                    <button id="level1Btn" class="level-btn" data-level="1">Level 1 (998 groups)</button>
-                    <button id="level0Btn" class="level-btn" data-level="0">Level 0 (10k clusters)</button>
-                </div>
-            </div>
-            <div class="controls">
-                <input type="text" id="searchInput" placeholder="🔍 Search cluster names & descriptions...">
-                <button id="searchBtn">Search</button>
-                <button id="resetView">Reset View</button>
-            </div>
         </header>
 
         <!-- Main PCA Visualization -->
@@ -131,12 +118,28 @@
                     <button id="backBtn" class="back-btn" style="display: none;">⬅ Back</button>
                 </div>
             </div>
+            
+            <!-- Level Controls and Search moved here -->
+            <div class="hierarchy-nav">
+                <div class="level-controls">
+                    <button id="level3Btn" class="level-btn active" data-level="3">Level 3 (9 groups)</button>
+                    <button id="level2Btn" class="level-btn" data-level="2">Level 2 (99 groups)</button>
+                    <button id="level1Btn" class="level-btn" data-level="1">Level 1 (998 groups)</button>
+                    <button id="level0Btn" class="level-btn" data-level="0">Level 0 (10k clusters)</button>
+                </div>
+            </div>
+            <div class="controls">
+                <input type="text" id="searchInput" placeholder="🔍 Search cluster names & descriptions...">
+                <button id="searchBtn">Search</button>
+                <button id="resetView">Reset View</button>
+            </div>
+            
             <div id="clusterGrid" class="cluster-grid">
                 Loading clusters...
             </div>
         </div>
     </div>
 
-    <script src="script.js?v=9"></script>
+    <script src="script.js?v=10"></script>
 </body>
 </html>
